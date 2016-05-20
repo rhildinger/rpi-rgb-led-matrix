@@ -1,3 +1,15 @@
+Compute Module Support
+======================
+
+This repo is a fork of hzeller/rpi-rgb-led-matrix, created for the purpose of 
+adding in support for an additional 2 panel chains via the Raspberry Pi
+Compute Module IO Board.
+
+
+
+Original README.md contents:
+----------------------------
+
 Controlling RGB LED display with Raspberry Pi GPIO
 ==================================================
 
