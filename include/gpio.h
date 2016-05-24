@@ -27,7 +27,8 @@ namespace rgb_matrix {
 class GPIO {
  public:
   // Available bits that actually have pins.
-  static const uint32_t kValidBits;
+  static const uint32_t kValidBits0;
+  static const uint32_t kValidBits1;
 
   GPIO();
 
@@ -37,47 +38,63 @@ class GPIO {
 
   // Initialize outputs.
   // Returns the bits that are actually set.
-  uint32_t InitOutputs(uint32_t outputs);
+  uint32_t InitOutputs0(uint32_t outputs0);
+  uint32_t InitOutputs1(uint32_t outputs1);
+
 
   // Set the bits that are '1' in the output. Leave the rest untouched.
-  inline void SetBits(uint32_t value) {
-    if (!value) return;
-    *gpio_set_bits_ = value;
-#ifdef RGB_SLOWDOWN_GPIO
-    *gpio_set_bits_ = value;
-#  if RGB_SLOWDOWN_GPIO > 1
-    *gpio_set_bits_ = value;   // for really slow cases
-#  endif
-#endif
+  inline void SetBits(uint32_t val0,uint32_t val1) {
+    if ((!val0)&&(!val1)) return;
+    *gpio_set_bits_0 = val0;
+
+ #ifdef CM_5_CHAIN_SUPPORT
+    *gpio_set_bits_1 = val1;
+ #endif
+
+ #ifdef RGB_SLOWDOWN_GPIO
+    *gpio_set_bits_0 = val0;
+  #  if RGB_SLOWDOWN_GPIO > 1
+    *gpio_set_bits_0 = val0;   // for really slow cases
+  #  endif
+ #endif
   }
 
   // Clear the bits that are '1' in the output. Leave the rest untouched.
-  inline void ClearBits(uint32_t value) {
-    if (!value) return;
-    *gpio_clr_bits_ = value;
-#ifdef RGB_SLOWDOWN_GPIO
-    *gpio_clr_bits_ = value;
-#  if RGB_SLOWDOWN_GPIO > 1
-    *gpio_clr_bits_ = value;  // for really slow cases
-#  endif
-#endif
+  inline void ClearBits(uint32_t val0,uint32_t val1) {
+    if ((!val0)&&(!val1)) return;
+    *gpio_clr_bits_0 = val0;
+
+ #ifdef CM_5_CHAIN_SUPPORT
+    *gpio_clr_bits_1 = val1;
+ #endif
+
+ #ifdef RGB_SLOWDOWN_GPIO
+    *gpio_clr_bits_0 = val0;
+  #  if RGB_SLOWDOWN_GPIO > 1
+    *gpio_clr_bits_0 = val0;  // for really slow cases
+  #  endif
+ #endif
   }
+
 
   // Write all the bits of "value" mentioned in "mask". Leave the rest untouched.
-  inline void WriteMaskedBits(uint32_t value, uint32_t mask) {
+  inline void WriteMaskedBits(uint32_t value0, uint32_t mask0,uint32_t value1, uint32_t mask1) {
     // Writing a word is two operations. The IO is actually pretty slow, so
     // this should probably  be unnoticable.
-    ClearBits(~value & mask);
-    SetBits(value & mask);
+    ClearBits(~value0 & mask0,~value1 & mask1);
+    SetBits(value0 & mask0,value1 & mask1);
   }
 
-  inline void Write(uint32_t value) { WriteMaskedBits(value, output_bits_); }
+  inline void Write(uint32_t value0,uint32_t value1) { WriteMaskedBits(value0, output_bits_0, value1, output_bits_1); }
 
  private:
-  uint32_t output_bits_;
+  uint32_t output_bits_0;
+  uint32_t output_bits_1;
   volatile uint32_t *gpio_port_;
-  volatile uint32_t *gpio_set_bits_;
-  volatile uint32_t *gpio_clr_bits_;
+  volatile uint32_t *gpio_set_bits_0;
+  volatile uint32_t *gpio_set_bits_1;
+  volatile uint32_t *gpio_clr_bits_0;
+  volatile uint32_t *gpio_clr_bits_1;
 };
 
 // A PinPulser is a utility class that pulses a GPIO pin. There can be various

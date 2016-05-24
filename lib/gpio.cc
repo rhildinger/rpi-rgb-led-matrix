@@ -34,6 +34,11 @@
 #define GPIO_REGISTER_OFFSET         0x200000
 #define COUNTER_1Mhz_REGISTER_OFFSET   0x3000
 
+#define GPSET0      0x1C
+#define GPSET1      0x20
+#define GPCLR0      0x28
+#define GPCLR1      0x2C
+ 
 #define GPIO_PWM_BASE_OFFSET	(GPIO_REGISTER_OFFSET + 0xC000)
 #define GPIO_CLK_BASE_OFFSET	0x101000
 
@@ -78,11 +83,12 @@
 #define INP_GPIO(g) *(gpio_port_+((g)/10)) &= ~(7<<(((g)%10)*3))
 #define OUT_GPIO(g) *(gpio_port_+((g)/10)) |=  (1<<(((g)%10)*3))
 
+
 #define GPIO_SET *(gpio+7)  // sets   bits which are 1 ignores bits which are 0
 #define GPIO_CLR *(gpio+10) // clears bits which are 1 ignores bits which are 0
 
 namespace rgb_matrix {
-/*static*/ const uint32_t GPIO::kValidBits
+/*static*/ const uint32_t GPIO::kValidBits0
 = ((1 <<  0) | (1 <<  1) | // RPi 1 - Revision 1 accessible
    (1 <<  2) | (1 <<  3) | // RPi 1 - Revision 2 accessible
    (1 <<  4) | (1 <<  7) | (1 << 8) | (1 <<  9) |
@@ -90,13 +96,44 @@ namespace rgb_matrix {
    (1 << 22) | (1 << 23) | (1 << 24) | (1 << 25)| (1 << 27) |
    // support for A+/B+ and RPi2 with additional GPIO pins.
    (1 <<  5) | (1 <<  6) | (1 << 12) | (1 << 13) | (1 << 16) |
-   (1 << 19) | (1 << 20) | (1 << 21) | (1 << 26)
+   (1 << 19) | (1 << 20) | (1 << 21) | (1 << 26) |
+   // Tack on support for the rest of the BCM283X GPIO pins (but skip 28 & 29)
+   (1 << 30) | (1 << 31) 
 );
 
-GPIO::GPIO() : output_bits_(0), gpio_port_(NULL) {
+/*static*/ const uint32_t GPIO::kValidBits1
+= ((1 <<  0) | (1 <<  1) | (1 <<  2) | (1 <<  3) | //GPIOs 32-43 on second bank
+   (1 <<  4) | (1 <<  5) | (1 <<  6) | (1 <<  7) |
+   (1 <<  8) | (1 <<  9) | (1 << 10) | (1 << 11) 
+);
+
+
+
+
+GPIO::GPIO() : output_bits_0(0), output_bits_1(0), gpio_port_(NULL) {
 }
 
-uint32_t GPIO::InitOutputs(uint32_t outputs) {
+#ifdef CM_5_CHAIN_SUPPORT
+uint32_t GPIO::InitOutputs1(uint32_t outputs1) {
+  if (gpio_port_ == NULL) {
+    fprintf(stderr, "Attempt to init outputs but not yet Init()-ialized.\n");
+    return 0;
+  }
+
+  outputs1 &= kValidBits1;   // Sanitize input.
+  output_bits_1 = outputs1;
+
+  for (uint32_t b = 0; b <= 11; ++b) {
+    if (outputs1 & (1 << b)) {
+      INP_GPIO(b+32);   // for writing, we first need to set as input.
+      OUT_GPIO(b+32);
+    }
+  }
+  return output_bits_1;
+}
+#endif
+
+uint32_t GPIO::InitOutputs0(uint32_t outputs0) {
   if (gpio_port_ == NULL) {
     fprintf(stderr, "Attempt to init outputs but not yet Init()-ialized.\n");
     return 0;
@@ -111,15 +148,16 @@ uint32_t GPIO::InitOutputs(uint32_t outputs) {
   INP_GPIO(4);
 #endif
 
-  outputs &= kValidBits;   // Sanitize input.
-  output_bits_ = outputs;
-  for (uint32_t b = 0; b <= 27; ++b) {
-    if (outputs & (1 << b)) {
+  outputs0 &= kValidBits0;   // Sanitize input.
+  output_bits_0 = outputs0;
+
+  for (uint32_t b = 0; b <= 31; ++b) {
+    if (outputs0 & (1 << b)) {
       INP_GPIO(b);   // for writing, we first need to set as input.
       OUT_GPIO(b);
     }
   }
-  return output_bits_;
+  return output_bits_0;
 }
 
 static bool IsRaspberryPi2() {
@@ -171,8 +209,11 @@ bool GPIO::Init() {
   if (gpio_port_ == NULL) {
     return false;
   }
-  gpio_set_bits_ = gpio_port_ + (0x1C / sizeof(uint32_t));
-  gpio_clr_bits_ = gpio_port_ + (0x28 / sizeof(uint32_t));
+  gpio_set_bits_0 = gpio_port_ + (GPSET0 / sizeof(uint32_t));
+  gpio_set_bits_1 = gpio_port_ + (GPSET1 / sizeof(uint32_t));
+  gpio_clr_bits_0 = gpio_port_ + (GPCLR0 / sizeof(uint32_t));
+  gpio_clr_bits_1 = gpio_port_ + (GPCLR1 / sizeof(uint32_t));
+
   return true;
 }
 
@@ -200,9 +241,9 @@ public:
     : io_(io), bits_(bits), nano_specs_(nano_specs) {}
 
   virtual void SendPulse(int time_spec_number) {
-    io_->ClearBits(bits_);
+    io_->ClearBits(bits_,0);
     Timers::sleep_nanos(nano_specs_[time_spec_number]);
-    io_->SetBits(bits_);
+    io_->SetBits(bits_,0);
   }
 
 private:

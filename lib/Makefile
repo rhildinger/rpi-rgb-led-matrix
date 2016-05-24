@@ -78,6 +78,12 @@ DEFINES+=-DRGB_SLOWDOWN_GPIO=1
 # some oddball old (typically one-colored) display, such as Hub12.
 #DEFINES+=-DONLY_SINGLE_SUB_PANEL
 
+# Compute Module 5 chain support causes a slight performance hit due to the need
+# for double the GPIO operations when clocking out the pixel data. The actual hit
+# is comparable to defining DRGB_SLOWDOWN_GPIO=1. For this reason the 5 chain support
+# is kept out of the build by default. Uncomment the following line to add it back in.
+#DEFINES+=-DCM_5_CHAIN_SUPPORT
+
 INCDIR=../include
 CXXFLAGS=-Wall -O3 -g -fPIC $(DEFINES)
 

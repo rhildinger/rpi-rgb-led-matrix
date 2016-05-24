@@ -173,7 +173,7 @@ public:
     int rotation = 0;
     while (running()) {
       ++rotation;
-      usleep(15 * 1000);
+      usleep(3 * 1000);
       rotation %= 360;
       for (int x = min_rotate; x < max_rotate; ++x) {
         for (int y = min_rotate; y < max_rotate; ++y) {
@@ -1148,7 +1148,7 @@ int main(int argc, char *argv[]) {
   if (chain > 8) {
     fprintf(stderr, "That is a long chain. Expect some flicker.\n");
   }
-  if (parallel < 1 || parallel > 3) {
+  if (parallel < 1 || parallel > 5) {
     fprintf(stderr, "Parallel outside usable range.\n");
     return 1;
   }
